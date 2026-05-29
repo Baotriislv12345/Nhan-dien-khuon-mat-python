@@ -1,3 +1,4 @@
+https://img.shields.io/badge/any_text-you_like-blue
 # Hệ thống nhận diện khuôn mặt và điểm danh
 
 Ứng dụng nhận diện khuôn mặt bằng webcam, hỗ trợ thu thập dữ liệu khuôn mặt, train model, nhận diện realtime và ghi nhận điểm danh vào SQLite.
