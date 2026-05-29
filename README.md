@@ -9,7 +9,8 @@
   <img height="32" width="32" src="https://cdn.simpleicons.org/simpleicons/orange/pink" />
   <img height="32" width="32" src="https://cdn.simpleicons.org/simpleicons/_/eee" />
   <img height="32" width="32" src="https://cdn.simpleicons.org/simpleicons/eee/_" />
-# Hệ thống nhận diện khuôn mặt và điểm danh
+
+  # Hệ thống nhận diện khuôn mặt và điểm danh
 
 Ứng dụng nhận diện khuôn mặt bằng webcam, hỗ trợ thu thập dữ liệu khuôn mặt, train model, nhận diện realtime và ghi nhận điểm danh vào SQLite.
 
