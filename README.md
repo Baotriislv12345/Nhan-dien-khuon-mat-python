@@ -1,4 +1,14 @@
-<img src="https://skillicons.dev/icons?i=all" alt="Skill Icons">
+<p align="center">
+  <img height="32" width="32" src="https://cdn.simpleicons.org/simpleicons" />
+  <img height="32" width="32" src="https://cdn.simpleicons.org/simpleicons/gray" />
+  <img height="32" width="32" src="https://cdn.simpleicons.org/simpleicons/hotpink" />
+  <img height="32" width="32" src="https://cdn.simpleicons.org/simpleicons/0cf" />
+  <img height="32" width="32" src="https://cdn.simpleicons.org/simpleicons/0cf9" />
+  <img height="32" width="32" src="https://cdn.simpleicons.org/simpleicons/00ccff" />
+  <img height="32" width="32" src="https://cdn.simpleicons.org/simpleicons/00ccff99" />
+  <img height="32" width="32" src="https://cdn.simpleicons.org/simpleicons/orange/pink" />
+  <img height="32" width="32" src="https://cdn.simpleicons.org/simpleicons/_/eee" />
+  <img height="32" width="32" src="https://cdn.simpleicons.org/simpleicons/eee/_" />
 # Hệ thống nhận diện khuôn mặt và điểm danh
 
 Ứng dụng nhận diện khuôn mặt bằng webcam, hỗ trợ thu thập dữ liệu khuôn mặt, train model, nhận diện realtime và ghi nhận điểm danh vào SQLite.
