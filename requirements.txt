@@ -1,0 +1,6 @@
+opencv-contrib-python==4.11.0.86
+face_recognition
+numpy<2
+customtkinter
+pillow
+mediapipe==0.10.21
