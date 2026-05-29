@@ -1,155 +1,211 @@
-# Nhận diện khuôn mặt nhóm 4
+# Hệ thống nhận diện khuôn mặt và điểm danh
 
-Ứng dụng nhận diện khuôn mặt bằng webcam, dùng `face_recognition` để tạo encoding khuôn mặt, `OpenCV` để đọc camera và `CustomTkinter` để chạy giao diện.
+Ứng dụng nhận diện khuôn mặt bằng webcam, hỗ trợ thu thập dữ liệu khuôn mặt, train model, nhận diện realtime và ghi nhận điểm danh vào SQLite.
+
+Project sử dụng:
+
+- `OpenCV` để đọc webcam và xử lý khung hình.
+- `face_recognition` để mã hóa và so khớp khuôn mặt.
+- `mediapipe` để nhận diện cử chỉ bàn tay khi chụp dữ liệu.
+- `CustomTkinter` để xây dựng giao diện.
+- `SQLite` để lưu lịch sử điểm danh.
 
 ## Tính năng
 
-- Thu thập dữ liệu khuôn mặt bằng webcam.
+- Thu thập ảnh khuôn mặt bằng webcam.
 - Mỗi người cần 3 ảnh để train.
-- Có 2 cách chụp ảnh khi thu thập dữ liệu:
+- Chụp ảnh bằng 2 cách:
   - Mở bàn tay rồi nắm tay lại.
   - Bấm phím `Space`.
-- Nếu thu thập thất bại khi chưa đủ 3 ảnh, GUI tự mở lại camera với tên cũ, không cần nhập lại tên.
-- Sau khi thu thập xong, chương trình tự train model nếu dữ liệu mới hơn model hiện tại.
-- Khi nhận diện, chương trình cũng tự kiểm tra và train lại nếu dataset đã thay đổi.
-- Hiển thị tên người nhận diện được, người lạ sẽ hiển thị `Unknown`.
+- Chỉ lưu ảnh khi camera phát hiện khuôn mặt.
+- Tự train model sau khi thu thập dữ liệu thành công.
+- Tự kiểm tra và train lại nếu dataset mới hơn model hiện tại.
+- Nhận diện khuôn mặt realtime qua webcam.
+- Người chưa có trong dữ liệu sẽ hiển thị là `Unknown`.
+- Tự động điểm danh người đã nhận diện, mỗi người chỉ được ghi 1 lần trong ngày.
+- Xem bảng điểm danh theo ngày hoặc toàn bộ lịch sử.
+- Xóa riêng dữ liệu ảnh/model hoặc dữ liệu điểm danh.
 
-## Cấu trúc chính
+## Cấu trúc thư mục
 
 ```text
-FaceRecognitionProject/
-├── build_dataset.py        # Thu thập ảnh khuôn mặt
-├── train_model.py          # Train model từ dataset
-├── recognize_face.py       # Nhận diện khuôn mặt realtime
+.
+├── attendance.py                         # Xử lý SQLite và dữ liệu điểm danh
+├── attendance.db                         # Database điểm danh
+├── build_dataset.py                      # Thu thập ảnh khuôn mặt
+├── recognize_face.py                     # Nhận diện khuôn mặt và điểm danh
+├── train_model.py                        # Train model từ dataset
 ├── gui/
-│   └── main_gui.py         # Giao diện chính
-├── dataset/                # Ảnh khuôn mặt theo từng người
+│   └── main_gui.py                       # Giao diện chính
+├── dataset/                              # Ảnh khuôn mặt theo từng người
 ├── trainer/
-│   └── face_model.pkl      # Model đã train
+│   └── face_model.pkl                    # Model đã train
 ├── models/
 │   └── haarcascade_frontalface_default.xml
 └── requirements.txt
 ```
 
+## Yêu cầu
+
+Khuyến nghị chạy trên Windows với Python 3.11.
+
+Webcam cần hoạt động bình thường và không bị ứng dụng khác chiếm dụng như Zoom, Teams, Zalo, Discord hoặc trình duyệt.
+
 ## Cài đặt
 
-Khuyến nghị dùng Python 3.11 trên Windows.
-
-Tại thư mục dự án, chạy:
+Tại thư mục project, chạy:
 
 ```powershell
 python -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-Nếu cài `face_recognition` hoặc `dlib` lỗi, cần cài thêm:
+Nếu cài `face_recognition` hoặc `dlib` bị lỗi, hãy cài thêm:
 
 - CMake
 - Visual Studio Build Tools hoặc Visual Studio Community với workload `Desktop development with C++`
 
+Các thư viện chính đang dùng:
+
+```text
+opencv-contrib-python==4.11.0.86
+face_recognition
+numpy<2
+customtkinter
+pillow
+mediapipe==0.10.21
+```
+
 ## Chạy chương trình
 
-Chạy GUI:
+Chạy giao diện chính:
 
 ```powershell
 python gui/main_gui.py
 ```
 
-Trong giao diện có các nút chính:
+Trong giao diện có 2 tab chính:
 
-- `Thu thập dữ liệu`: nhập tên người, mở webcam để chụp 3 ảnh.
-- `Nhận diện khuôn mặt`: mở webcam để nhận diện realtime.
-- `Xóa dữ liệu`: xóa toàn bộ thư mục `dataset/`.
+- `Chức năng`: thu thập dữ liệu, nhận diện và xóa dữ liệu.
+- `Bảng điểm danh`: xem danh sách điểm danh theo ngày hoặc tất cả ngày.
 
-## Thu thập dữ liệu
+## Quy trình sử dụng
 
-Sau khi nhập tên, cửa sổ webcam sẽ mở ra.
+### 1. Thu thập dữ liệu
+
+Trong tab `Chức năng`, chọn `Thu thập dữ liệu`, nhập tên người cần thêm, sau đó cửa sổ webcam sẽ mở.
 
 Cách chụp ảnh:
 
-1. Đưa mặt vào camera.
-2. Dùng một trong hai cách:
-   - Mở bàn tay rồi nắm tay lại.
-   - Bấm `Space`.
+1. Đưa mặt vào khung hình rõ ràng.
+2. Mở bàn tay rồi nắm tay lại, hoặc bấm `Space`.
 3. Chương trình chỉ lưu ảnh nếu phát hiện khuôn mặt.
-4. Khi đủ 3 ảnh, cửa sổ tự đóng và GUI tự train model.
+4. Khi đủ 3 ảnh, cửa sổ tự đóng và GUI tự train model nếu cần.
 
-Bấm `ESC` để hủy thu thập. Nếu bấm `ESC`, GUI không tự chạy lại.
+Bấm `ESC` để hủy thu thập. Nếu quá trình bị lỗi hoặc dừng khi chưa đủ 3 ảnh, GUI sẽ tự mở lại camera với tên vừa nhập.
 
-Nếu quá trình thu thập bị lỗi hoặc dừng khi chưa đủ 3 ảnh, GUI sẽ tự mở lại cửa sổ thu thập với đúng tên vừa nhập.
+### 2. Nhận diện và điểm danh
 
-## Nhận diện khuôn mặt
+Trong tab `Chức năng`, chọn `Nhận diện & Điểm danh`.
 
-Chạy từ GUI bằng nút `Nhận diện khuôn mặt`, hoặc chạy trực tiếp:
+Khi bắt đầu nhận diện, chương trình sẽ:
 
-```powershell
-python recognize_face.py
-```
-
-Khi mở nhận diện, chương trình sẽ:
-
-1. Kiểm tra `dataset/` có thay đổi không.
+1. Kiểm tra `dataset/` có mới hơn `trainer/face_model.pkl` không.
 2. Tự train lại nếu cần.
-3. Load `trainer/face_model.pkl`.
-4. Mở webcam và nhận diện khuôn mặt realtime.
+3. Load model khuôn mặt.
+4. Mở webcam để nhận diện realtime.
+5. Ghi điểm danh vào `attendance.db` khi nhận diện được người hợp lệ.
 
 Bấm `ESC` để thoát cửa sổ nhận diện.
 
-## Train thủ công
+### 3. Xem điểm danh
 
-Bình thường không cần train thủ công nữa. Nếu vẫn muốn train lại toàn bộ:
+Mở tab `Bảng điểm danh` để xem danh sách điểm danh.
+
+Bạn có thể:
+
+- Chọn ngày cụ thể.
+- Chọn `Tất cả ngày`.
+- Bấm `Làm mới` để tải lại dữ liệu mới nhất.
+
+### 4. Xóa dữ liệu
+
+Trong tab `Chức năng`, chọn `Xóa dữ liệu`.
+
+Chương trình cho phép chọn:
+
+- `Xóa ảnh`: xóa ảnh trong `dataset/` và model trong `trainer/`.
+- `Xóa dữ liệu điểm danh`: xóa toàn bộ bản ghi trong `attendance.db`.
+
+Các thao tác xóa không thể hoàn tác.
+
+## Chạy bằng dòng lệnh
+
+Thu thập dữ liệu cho một người:
+
+```powershell
+python build_dataset.py "Nguyen Van A"
+```
+
+Train model thủ công:
 
 ```powershell
 python train_model.py
 ```
 
-Nếu chỉ muốn train khi dataset mới hơn model:
+Chỉ train khi dataset mới hơn model:
 
 ```powershell
 python train_model.py --if-needed
 ```
 
+Chạy nhận diện trực tiếp:
+
+```powershell
+python recognize_face.py
+```
+
 ## Lưu ý khi sử dụng
 
 - Camera cần đủ sáng, mặt nhìn rõ và không bị che.
-- Khi dùng cử chỉ tay, đưa tay vào khung hình đủ rõ để `mediapipe` nhận diện.
-- Nếu camera không mở được, kiểm tra Zoom, Teams, Zalo, Discord hoặc app khác có đang chiếm webcam không.
-- Nếu nhận diện sai người, hãy chụp lại ảnh rõ hơn và train lại.
-- Không nên public thư mục `dataset/` và `trainer/` nếu dữ liệu có thông tin cá nhân.
+- Khi dùng cử chỉ tay, đưa bàn tay vào khung hình đủ rõ để `mediapipe` nhận diện.
+- Nếu nhận diện sai, hãy xóa ảnh cũ, chụp lại ảnh rõ hơn và train lại.
+- Không nên public thư mục `dataset/`, `trainer/` hoặc file `attendance.db` nếu dữ liệu có thông tin cá nhân.
+- Tên người được dùng làm tên thư mục trong `dataset/`, nên tránh ký tự đặc biệt khó xử lý trên Windows.
 
 ## Lỗi thường gặp
 
+### Không mở được webcam
+
+Đóng các ứng dụng đang dùng camera, sau đó chạy lại chương trình. Nếu máy có nhiều camera, có thể cần chỉnh lại index camera trong code.
+
 ### Không tìm thấy model
 
-Chạy thu thập dữ liệu trước, hoặc chạy:
+Hãy thu thập dữ liệu trước, hoặc train model thủ công:
 
 ```powershell
 python train_model.py
 ```
 
-### Thiếu mediapipe
+### Thiếu `mediapipe`
 
-Chạy:
+Cài lại dependencies:
 
 ```powershell
 pip install -r requirements.txt
 ```
 
-Project đang pin:
-
-```text
-mediapipe==0.10.21
-numpy<2
-opencv-contrib-python==4.11.0.86
-```
-
-Không nên tự nâng `mediapipe` lên bản mới nếu chưa sửa code, vì một số bản mới không còn `mp.solutions.hands`.
+Không nên tự nâng `mediapipe` nếu chưa kiểm tra code, vì project đang pin `mediapipe==0.10.21`.
 
 ### Không chụp được ảnh
 
-- Đảm bảo camera thấy rõ khuôn mặt.
-- Bấm `Space` để thử cách chụp thủ công.
+- Đảm bảo camera nhìn rõ khuôn mặt.
+- Bấm `Space` để thử chụp thủ công.
 - Nếu dùng cử chỉ, hãy mở bàn tay rõ trước rồi mới nắm tay.
+
+### Điểm danh không ghi thêm lần thứ hai trong ngày
+
+Đây là hành vi mặc định. Database có ràng buộc mỗi tên chỉ có một bản ghi cho mỗi ngày.
 
 ## Tác giả
 
