@@ -72,6 +72,28 @@ def get_attendance_dates() -> list[str]:
     return [row["date"] for row in rows]
 
 
+def get_attendance_names() -> list[str]:
+    with get_connection() as conn:
+        rows = conn.execute(
+            "SELECT DISTINCT name FROM attendance ORDER BY name COLLATE NOCASE"
+        ).fetchall()
+    return [row["name"] for row in rows]
+
+
+def delete_attendance_by_names(names: list[str]) -> int:
+    if not names:
+        return 0
+
+    placeholders = ",".join("?" for _ in names)
+    with get_connection() as conn:
+        cursor = conn.execute(
+            f"DELETE FROM attendance WHERE name IN ({placeholders})",
+            names,
+        )
+        conn.commit()
+        return cursor.rowcount
+
+
 def clear_attendance():
     with get_connection() as conn:
         conn.execute("DELETE FROM attendance")

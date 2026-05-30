@@ -361,5 +361,214 @@ class MainGUI(ctk.CTk):
             messagebox.showerror("Loi", f"Không thể xóa dữ liệu điểm danh: {e}")
 
 
-app = MainGUI()
-app.mainloop()
+def _main_gui_get_dataset_people(self):
+    dataset_path = BASE_DIR / "dataset"
+    if not dataset_path.exists():
+        return []
+
+    return sorted(
+        [person_path.name for person_path in dataset_path.iterdir() if person_path.is_dir()],
+        key=str.casefold,
+    )
+
+
+def _main_gui_choose_names_to_delete(self, title, names):
+    if not names:
+        messagebox.showinfo("Thông báo", "Không có dữ liệu để xóa.")
+        return []
+
+    dialog = ctk.CTkToplevel(self)
+    dialog.title(title)
+    dialog.geometry("420x430")
+    dialog.resizable(False, False)
+    dialog.transient(self)
+    dialog.grab_set()
+
+    selected_names = []
+    variables = {}
+
+    ctk.CTkLabel(
+        dialog,
+        text="Chọn người muốn xóa",
+        font=("Arial", 16, "bold")
+    ).pack(pady=(18, 8))
+
+    list_frame = ctk.CTkScrollableFrame(dialog, width=360, height=250)
+    list_frame.pack(fill="both", expand=True, padx=18, pady=(0, 10))
+
+    for name in names:
+        checked = tk.BooleanVar(value=False)
+        variables[name] = checked
+        ctk.CTkCheckBox(list_frame, text=name, variable=checked).pack(
+            anchor="w",
+            padx=8,
+            pady=5,
+        )
+
+    def select_all():
+        for variable in variables.values():
+            variable.set(True)
+
+    def confirm():
+        selected_names.extend(
+            name for name, variable in variables.items() if variable.get()
+        )
+        dialog.destroy()
+
+    button_frame = ctk.CTkFrame(dialog, fg_color="transparent")
+    button_frame.pack(fill="x", padx=18, pady=(0, 16))
+
+    ctk.CTkButton(
+        button_frame,
+        text="Chọn tất cả",
+        width=110,
+        fg_color="#555555",
+        hover_color="#444444",
+        command=select_all,
+    ).pack(side="left", padx=(0, 8))
+
+    ctk.CTkButton(
+        button_frame,
+        text="Xóa mục đã chọn",
+        width=150,
+        fg_color="#c0392b",
+        hover_color="#96281b",
+        command=confirm,
+    ).pack(side="left", padx=(0, 8))
+
+    ctk.CTkButton(
+        button_frame,
+        text="Hủy",
+        width=80,
+        fg_color="#555555",
+        hover_color="#444444",
+        command=dialog.destroy,
+    ).pack(side="right")
+
+    dialog.protocol("WM_DELETE_WINDOW", dialog.destroy)
+    dialog.wait_window()
+    return selected_names
+
+
+def _main_gui_has_dataset_images(self):
+    dataset_path = BASE_DIR / "dataset"
+    image_extensions = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
+
+    if not dataset_path.exists():
+        return False
+
+    for person_path in dataset_path.iterdir():
+        if not person_path.is_dir():
+            continue
+        for image_path in person_path.iterdir():
+            if image_path.is_file() and image_path.suffix.lower() in image_extensions:
+                return True
+
+    return False
+
+
+def _main_gui_remove_trained_models(self):
+    trainer_path = BASE_DIR / "trainer"
+    for model_name in ("face_model.pkl", "face_model.yml"):
+        model_path = trainer_path / model_name
+        if model_path.exists():
+            model_path.unlink()
+
+
+def _main_gui_refresh_model_after_image_delete(self):
+    if self._has_dataset_images():
+        result = subprocess.run(
+            [sys.executable, str(BASE_DIR / "train_model.py")],
+            cwd=BASE_DIR,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
+        if result.returncode != 0:
+            output = (result.stderr or result.stdout or "").strip()
+            if not output:
+                output = "Không thể train lại model sau khi xóa ảnh."
+            messagebox.showerror("Lỗi train model", output)
+    else:
+        self._remove_trained_models()
+
+
+def _main_gui_delete_selected_images(self):
+    names = self._choose_names_to_delete("Xóa ảnh theo người", self._get_dataset_people())
+    if not names:
+        return
+
+    if not messagebox.askyesno(
+        "Xác nhận xóa ảnh",
+        "Bạn có chắc chắn muốn xóa ảnh của: "
+        + ", ".join(names)
+        + "?\nHành động này không thể hoàn tác."
+    ):
+        return
+
+    dataset_path = BASE_DIR / "dataset"
+    try:
+        for name in names:
+            person_path = dataset_path / name
+            if person_path.exists() and person_path.is_dir():
+                shutil.rmtree(person_path)
+
+        dataset_path.mkdir(parents=True, exist_ok=True)
+        self._refresh_model_after_image_delete()
+        messagebox.showinfo("Thành công", "Đã xóa ảnh của người được chọn.")
+    except Exception as e:
+        messagebox.showerror("Lỗi", f"Không thể xóa ảnh: {e}")
+
+
+def _main_gui_delete_selected_attendance(self):
+    try:
+        sys.path.insert(0, str(BASE_DIR))
+        from attendance import delete_attendance_by_names, get_attendance_names
+
+        names = self._choose_names_to_delete(
+            "Xóa điểm danh theo người",
+            get_attendance_names(),
+        )
+        if not names:
+            return
+
+        if not messagebox.askyesno(
+            "Xác nhận xóa điểm danh",
+            "Bạn có chắc chắn muốn xóa lịch sử điểm danh của: "
+            + ", ".join(names)
+            + "?\nHành động này không thể hoàn tác."
+        ):
+            return
+
+        deleted_count = delete_attendance_by_names(names)
+        self.attendance_tab.refresh()
+        messagebox.showinfo(
+            "Thành công",
+            f"Đã xóa {deleted_count} lượt điểm danh của người được chọn.",
+        )
+    except Exception as e:
+        messagebox.showerror("Lỗi", f"Không thể xóa dữ liệu điểm danh: {e}")
+
+
+def _main_gui_delete_dataset(self):
+    action = self._choose_delete_action()
+    if action == "images":
+        self._delete_selected_images()
+    elif action == "attendance":
+        self._delete_selected_attendance()
+
+
+MainGUI._get_dataset_people = _main_gui_get_dataset_people
+MainGUI._choose_names_to_delete = _main_gui_choose_names_to_delete
+MainGUI._has_dataset_images = _main_gui_has_dataset_images
+MainGUI._remove_trained_models = _main_gui_remove_trained_models
+MainGUI._refresh_model_after_image_delete = _main_gui_refresh_model_after_image_delete
+MainGUI._delete_selected_images = _main_gui_delete_selected_images
+MainGUI._delete_selected_attendance = _main_gui_delete_selected_attendance
+MainGUI.delete_dataset = _main_gui_delete_dataset
+
+
+if __name__ == "__main__":
+    app = MainGUI()
+    app.mainloop()
